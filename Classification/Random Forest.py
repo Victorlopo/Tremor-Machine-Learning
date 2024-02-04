@@ -4,109 +4,72 @@ Created on Thu Apr  8 09:21:39 2021
 
 @author: Víctor Lopo Martínez
 
-Clasificador RandomForest con 500 estimadores y máximo número de nodos = 16
-Base de datos etiquetada clínicamente
-Entrada al clasificador -> 50 angulos filtrados y situados en 0
-Precisión = 95
-Sensibilidad = 92
-
 """
 
+# Importaciones necesarias
 import numpy as np
-import pandas as pd 
+import pandas as pd
 from os import listdir
 from os.path import isfile, join
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import precision_score, recall_score
-import math
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.metrics import confusion_matrix, precision_score, recall_score
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import normalize
 
+# Ruta al directorio con los datos
+mypath = "my_path"
 
-mypath = "C:\\Users\\Usuario\\Desktop\\UNIVERSIDAD\\TFG\\BASE_DE_DATOS_FILTRADA_NUEVA_PSD\\"
-# Extraigo el número de bloques totales dentro de la base de datos
-onlyfiles = [f for f in listdir(mypath) if isfile(join(mypath,f))]
+# Extracción de archivos de la base de datos
+onlyfiles = [f for f in listdir(mypath) if isfile(join(mypath, f))]
 onlyfiles = sorted(onlyfiles)
 
-# Número de segmentos totales de la base de datos
-num_bloques = 20299
-# Creo un array con tantas filas como bloques hay, y 52 columnas (50 para ángulos, la 51 para el identificador y la 52 con la etiqueta (1 temblor, 0 no temblor))
-conjunto_total = np.zeros((num_bloques, 52))
+# Inicialización del conjunto de datos
+num_bloques = 20299  # Número total de segmentos en la base de datos
+conjunto_total = np.zeros((num_bloques, 52))  # Array para almacenar ángulos, identificador y etiqueta
+
+# Lectura y almacenamiento de datos
 fila_conjunto_total = 0
-# Recorro el onlyfiles para almacenar los angulos, id, y etiqueta en el conjunto_total
 for i in onlyfiles:
-    df = pd.read_csv(mypath + '\\' + i, sep=',')
-    num_filas = df.shape[0]
-    pos_bloque = 0
-    for x in range(0,num_filas,1):
-        id_segmento = str(i[6:12])
-        identificador = id_segmento + '.' + str(pos_bloque)
-        identificador = float(identificador)
-        conjunto_total[fila_conjunto_total,0:-2] = df.iloc[x,1:51]
-        conjunto_total[fila_conjunto_total,-1] = df.iloc[x,-1]
-        conjunto_total[fila_conjunto_total,-2] = identificador
-        pos_bloque+=1
+    df = pd.read_csv(join(mypath, i), sep=',')
+    for x, row in df.iterrows():
+        identificador = float(f"{i[6:12]}.{x}")
+        conjunto_total[fila_conjunto_total, :-2] = row[1:51]
+        conjunto_total[fila_conjunto_total, -2] = identificador
+        conjunto_total[fila_conjunto_total, -1] = row[-1]
         fila_conjunto_total += 1
-        print(x)
 
-# Bucle for para situar todos los ángulos en 0 (les resto la media de sus valores)
-for i in range(0,conjunto_total.shape[0],1):
-    media = sum(conjunto_total[i,0:50])/50
-    conjunto_total[i,0:50] = conjunto_total[i,0:50] - media
+# División del conjunto en entrenamiento y prueba
+train_set, test_set = train_test_split(conjunto_total, test_size=0.2, random_state=220)
 
-# Creo el train_set y el test_set, el parámetro test_size es por lo que se multiplica el conjunto_total
-# para formar el test_set. El random_state es la semilla
-train_set, test_set = train_test_split(conjunto_total, test_size = 0.2, random_state = 220)
-# Aquí divido los conjunto de entrenamiento y prueba entre 2 (o el número que fuera)
-# porque mi ordenador no es capaz de procesar todo
-# =============================================================================
-# train_set = train_set[0:math.floor(int(train_set.shape[0])/int(2)),:]
-# test_set = test_set[0:math.floor(int(test_set.shape[0])/int(2)),:]
-# =============================================================================
+# Normalización de los conjuntos de entrenamiento y prueba (después del split)
+X_train = normalize(train_set[:, 0:50])
+Y_train = train_set[:, -1]
+X_test = normalize(test_set[:, 0:50])
+Y_test = test_set[:, -1]
 
-# Separo valores y etiquetas de los conjuntos de entrenamiento y prueba por si lo necesito
-X_train = train_set[:,0:50] 
-Y_train = train_set[:,-1]
-X_test = test_set[:,0:50]
-Y_test = test_set[:,-1]   
+# Configuración de la validación cruzada para la selección de hiperparámetros óptimos
+param_grid = {
+    'n_estimators': [100, 300, 500],
+    'max_leaf_nodes': [16, 32, 64],
+    'max_depth': [None, 10, 20]
+}
+grid_search = GridSearchCV(RandomForestClassifier(n_jobs=-1), param_grid, cv=5, scoring='accuracy')
+grid_search.fit(X_train, Y_train)
 
+# Resultados de la validación cruzada
+print("Mejores parámetros:", grid_search.best_params_)
+best_model = grid_search.best_estimator_
 
-# Creo el modelo del random forest
-rnd_clf = RandomForestClassifier(n_estimators = 500, max_leaf_nodes =16, n_jobs=-1 )
-rnd_clf.fit(X_train, Y_train)
-y_pred_rf = rnd_clf.predict(X_test)
-
-# Calculo la matriz de confusión
+# Predicciones y evaluación del modelo
+y_pred_rf = best_model.predict(X_test)
 matriz_confusion_rf = confusion_matrix(Y_test, y_pred_rf)
-
-
-# Calculo la precisión y sensibilidad en base a los valores obtenidos
 precision_rf = precision_score(Y_test, y_pred_rf)
 sensibilidad_rf = recall_score(Y_test, y_pred_rf)
 
+# Análisis de resultados
+print("Matriz de confusión:\n", matriz_confusion_rf)
+print("Precisión:", precision_rf)
+print("Sensibilidad:", sensibilidad_rf)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# Al ser un análisis de una serie de temporal no tiene sentido hacer un análisis de importancia de las características porque todos 
+# los valores del vector de características del input representan la misma variación angular a lo largo del tiempo.
