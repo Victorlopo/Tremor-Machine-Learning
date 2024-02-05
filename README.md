@@ -19,8 +19,3 @@ The implemented classifiers achieved accuracies over 90% in the binary classific
 ## Conclusion
 The results confirm that the use of machine learning and deep learning algorithms can significantly optimize the out-of-phase strategy in the stimulation of afferent pathways, achieving greater suppression of pathological tremor. This approach represents a promising advancement in the treatment of essential tremor, offering a more accessible and effective solution for patients.
 
-## How to Contribute
-This project is open to contributions from the scientific and medical community. If you are interested in collaborating or implementing this technology, please contact the authors.
-
-## License
-This project is distributed under the [insert license type] license, which allows use, modification, and distribution under certain conditions.
